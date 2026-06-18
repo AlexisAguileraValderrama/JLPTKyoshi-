@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JLPT Kyoshi — Grammar Notebook</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="logo">&#128218; JLPT Kyoshi</span>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Notebooks</div>
+      <ul class="notebook-list" id="notebookList"></ul>
+      <button class="btn-add" id="btnAddNotebook">+ New Notebook</button>
+    </div>
+
+    <div class="sidebar-footer">
+      <label class="toggle-row" title="Use web search when generating AI responses">
+        <span>Web Search</span>
+        <div class="toggle-wrap">
+          <input type="checkbox" id="useSearchToggle">
+          <span class="toggle-slider"></span>
+        </div>
+      </label>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="main">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">&#12371;&#12435;&#12395;&#12385;&#12399;</div>
+      <h2>Welcome to JLPT Kyoshi</h2>
+      <p>Create a notebook on the left to start studying Japanese grammar.</p>
+    </div>
+
+    <div class="notebook-view hidden" id="notebookView">
+      <div class="notebook-title-bar">
+        <div class="notebook-title-block">
+          <h1 class="notebook-title" id="notebookTitle"></h1>
+          <p class="notebook-subtitle" id="notebookSubtitle"></p>
+        </div>
+        <div class="notebook-actions">
+          <button class="btn-small" id="btnExportPDF" title="Export to PDF">&#128196; Export PDF</button>
+          <button class="btn-icon" id="btnRenameNotebook" title="Rename">&#9998;</button>
+          <button class="btn-icon danger" id="btnDeleteNotebook" title="Delete">&#128465;</button>
+        </div>
+      </div>
+
+      <div id="grammarList"></div>
+
+      <button class="btn-add-grammar" id="btnAddGrammar">+ Add Grammar Section</button>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: new notebook -->
+<div class="modal-overlay hidden" id="modalNewNotebook">
+  <div class="modal">
+    <h3>New Notebook</h3>
+    <label class="field-label">Title</label>
+    <input type="text" id="inputNotebookName" placeholder="e.g. JLPT N3 Grammar" maxlength="80">
+    <label class="field-label" style="margin-top:12px">Subtitle <span class="field-optional">(optional)</span></label>
+    <textarea class="modal-textarea" id="inputNotebookSubtitle" placeholder="e.g. Focusing on intermediate grammar patterns for reading and writing…" rows="3"></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="btnCancelNotebook">Cancel</button>
+      <button class="btn-primary" id="btnConfirmNotebook">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: rename notebook -->
+<div class="modal-overlay hidden" id="modalRenameNotebook">
+  <div class="modal">
+    <h3>Edit Notebook</h3>
+    <label class="field-label">Title</label>
+    <input type="text" id="inputRenameNotebook" placeholder="Notebook title" maxlength="80">
+    <label class="field-label" style="margin-top:12px">Subtitle <span class="field-optional">(optional)</span></label>
+    <textarea class="modal-textarea" id="inputRenameSubtitle" placeholder="Short description…" rows="3"></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="btnCancelRename">Cancel</button>
+      <button class="btn-primary" id="btnConfirmRename">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: add grammar -->
+<div class="modal-overlay hidden" id="modalAddGrammar">
+  <div class="modal">
+    <h3>New Grammar Section</h3>
+    <label class="field-label">Grammar point to study</label>
+    <input type="text" id="inputGrammar" placeholder="e.g. ～ている、～たことがある、～ば～ほど" maxlength="200">
+    <div class="modal-actions">
+      <button class="btn-secondary" id="btnCancelGrammar">Cancel</button>
+      <button class="btn-primary" id="btnConfirmGrammar">Add &amp; Summarize</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast hidden" id="toast"></div>
+
+<!-- Grammar section template (cloned by JS) -->
+<template id="tplGrammarSection">
+  <div class="grammar-section" data-id="">
+    <div class="grammar-header">
+      <div class="grammar-tag">Grammar</div>
+      <h2 class="grammar-input-text"></h2>
+      <div class="grammar-header-actions">
+        <span class="exercise-count"></span>
+        <span class="toggle-arrow">&#9660;</span>
+        <button class="btn-icon danger btn-delete-grammar" title="Delete section">&#128465;</button>
+      </div>
+    </div>
+
+    <div class="grammar-body">
+      <div class="ai-summary-box">
+        <div class="ai-summary-toolbar">
+          <span class="ai-label">&#129302; AI Summary</span>
+          <button class="btn-small btn-regenerate-summary">&#8635; Regenerate</button>
+        </div>
+        <div class="ai-summary-content summary-placeholder">
+          <span class="spinner"></span> Generating summary…
+        </div>
+      </div>
+
+      <div class="exercises-section">
+        <div class="exercises-header">
+          <span class="exercises-label">&#9997;&#65039; My Exercises</span>
+          <button class="btn-small btn-add-exercise">+ Add Exercise</button>
+        </div>
+        <div class="exercise-list"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Exercise template -->
+<template id="tplExercise">
+  <div class="exercise-card" data-id="">
+    <div class="exercise-header">
+      <div class="exercise-num-row">
+        <span class="toggle-arrow">&#9660;</span>
+        <div class="exercise-num"></div>
+      </div>
+      <button class="btn-icon danger btn-delete-exercise" title="Delete">&#128465;</button>
+    </div>
+    <div class="exercise-body">
+      <textarea class="exercise-input" placeholder="Write your sentence using this grammar point…" rows="3"></textarea>
+      <div class="exercise-actions">
+        <button class="btn-primary btn-evaluate">&#129302; AI Assistant</button>
+      </div>
+      <div class="ai-feedback-box hidden">
+        <div class="ai-feedback-toolbar">
+          <span class="ai-label">&#129302; AI Feedback</span>
+          <div class="feedback-actions">
+            <button class="btn-small btn-collapse-feedback">&#9650; Collapse</button>
+            <button class="btn-small btn-regenerate-feedback">&#8635; Regenerate</button>
+          </div>
+        </div>
+        <div class="ai-feedback-content"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
