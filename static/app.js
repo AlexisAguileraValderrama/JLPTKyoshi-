@@ -1,3 +1,36 @@
+/* ── Auth ── */
+async function initAuth() {
+  try {
+    const res = await fetch('/.auth/me');
+    const data = await res.json();
+    const principal = data.clientPrincipal;
+    if (!principal) {
+      window.location.href = '/.auth/login/aad';
+      return false;
+    }
+    const email = principal.userDetails || principal.userId || 'User';
+    document.getElementById('userAvatar').textContent = email.charAt(0).toUpperCase();
+    document.getElementById('userEmail').textContent = email;
+  } catch {
+    // Local dev without SWA CLI — auth endpoint unavailable
+    document.getElementById('userEmail').textContent = 'Local Dev';
+    document.getElementById('userAvatar').textContent = 'L';
+  }
+  return true;
+}
+
+/* ── Mobile sidebar toggle ── */
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+document.getElementById('btnMenuToggle').addEventListener('click', openSidebar);
+document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
+
 /* ── State ── */
 let currentNotebookId = null;
 let notebooks = [];
@@ -58,6 +91,7 @@ function escHtml(str) {
 /* ── Open notebook ── */
 async function openNotebook(id) {
   currentNotebookId = id;
+  closeSidebar();
   renderSidebar();
   const nb = notebooks.find(n => n.id === id);
   $('notebookTitle').textContent = nb.name;
@@ -440,4 +474,4 @@ ${sectionsHtml || '<p style="color:#888">No grammar sections yet.</p>'}
 }
 
 /* ── Init ── */
-loadNotebooks();
+initAuth().then(ok => { if (ok !== false) loadNotebooks(); });

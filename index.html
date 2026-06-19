@@ -10,10 +10,27 @@
 <body>
 
 <div class="layout">
+  <!-- Mobile header -->
+  <header class="mobile-header" id="mobileHeader">
+    <button class="btn-hamburger" id="btnMenuToggle" aria-label="Toggle menu">&#9776;</button>
+    <span class="mobile-logo">&#128218; JLPT Kyoshi</span>
+  </header>
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <span class="logo">&#128218; JLPT Kyoshi</span>
+    </div>
+
+    <div class="user-bar">
+      <div class="user-details">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <span class="user-email" id="userEmail">Loading…</span>
+      </div>
+      <a class="btn-signout" href="/.auth/logout">Sign out</a>
     </div>
 
     <div class="sidebar-section">

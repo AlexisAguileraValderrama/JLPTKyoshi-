@@ -1,0 +1,4 @@
+azure-functions
+azure-cosmos>=4.7
+openai>=1.30
+python-dotenv>=1.0

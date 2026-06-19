@@ -1,8 +1,5 @@
 import os
 from openai import OpenAI
-from dotenv import load_dotenv
-
-load_dotenv()
 
 client = OpenAI(
     api_key=os.environ.get("XAI_API_KEY"),
@@ -94,7 +91,6 @@ Be encouraging and educational. Keep explanations clear and simple."""
 
 def summarize_grammar(grammar_input: str, use_search: bool = False) -> str:
     system = SUMMARY_SYSTEM_SEARCH if use_search else SUMMARY_SYSTEM
-
     kwargs = {
         "model": "grok-3-mini",
         "messages": [
@@ -103,18 +99,15 @@ def summarize_grammar(grammar_input: str, use_search: bool = False) -> str:
         ],
         "max_tokens": 1200,
     }
-
     if use_search:
         kwargs["model"] = "grok-3"
-        kwargs["search_parameters"] = {"mode": "auto"}
-
+        kwargs["extra_body"] = {"search_parameters": {"mode": "auto"}}
     response = client.chat.completions.create(**kwargs)
     return response.choices[0].message.content
 
 
 def evaluate_exercise(grammar_input: str, user_exercise: str, use_search: bool = False) -> str:
     context = f"The student is practicing the grammar point: {grammar_input}\nStudent's exercise: {user_exercise}"
-
     kwargs = {
         "model": "grok-3-mini",
         "messages": [
@@ -123,10 +116,8 @@ def evaluate_exercise(grammar_input: str, user_exercise: str, use_search: bool =
         ],
         "max_tokens": 800,
     }
-
     if use_search:
         kwargs["model"] = "grok-3"
-        kwargs["search_parameters"] = {"mode": "auto"}
-
+        kwargs["extra_body"] = {"search_parameters": {"mode": "auto"}}
     response = client.chat.completions.create(**kwargs)
     return response.choices[0].message.content
