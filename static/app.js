@@ -34,6 +34,7 @@ document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar
 /* ── State ── */
 let currentNotebookId = null;
 let notebooks = [];
+const notebookDomCache = {};
 
 /* ── Helpers ── */
 const $ = id => document.getElementById(id);
@@ -96,6 +97,15 @@ function escHtml(str) {
 
 /* ── Open notebook ── */
 async function openNotebook(id) {
+  const container = $('grammarList');
+
+  // Save current notebook DOM to cache before switching
+  if (currentNotebookId && currentNotebookId !== id && container.children.length) {
+    const wrapper = document.createElement('div');
+    while (container.firstChild) wrapper.appendChild(container.firstChild);
+    notebookDomCache[currentNotebookId] = wrapper;
+  }
+
   currentNotebookId = id;
   closeSidebar();
   renderSidebar();
@@ -111,7 +121,15 @@ async function openNotebook(id) {
   }
   $('emptyState').classList.add('hidden');
   $('notebookView').classList.remove('hidden');
-  await loadGrammarSections(id);
+
+  if (notebookDomCache[id]) {
+    container.innerHTML = '';
+    const cached = notebookDomCache[id];
+    while (cached.firstChild) container.appendChild(cached.firstChild);
+    delete notebookDomCache[id];
+  } else {
+    await loadGrammarSections(id);
+  }
 }
 
 /* ── Grammar sections ── */
@@ -120,15 +138,16 @@ async function loadGrammarSections(notebookId) {
   const container = $('grammarList');
   container.innerHTML = '';
   for (const section of sections) {
-    container.appendChild(await buildGrammarCard(section));
+    container.appendChild(buildGrammarCard(section));
   }
 }
 
-async function buildGrammarCard(section) {
+function buildGrammarCard(section) {
   const tpl = document.getElementById('tplGrammarSection');
   const card = tpl.content.cloneNode(true).querySelector('.grammar-section');
   card.dataset.id = section.id;
   card.classList.add('collapsed');
+  card._loaded = false;
   card.querySelector('.grammar-input-text').textContent = section.grammar_input;
 
   const summaryContent = card.querySelector('.ai-summary-content');
@@ -138,10 +157,14 @@ async function buildGrammarCard(section) {
     summaryContent.innerHTML = renderMarkdown(section.ai_summary);
   }
 
-  // Collapse toggle on header
-  card.querySelector('.grammar-header').addEventListener('click', (e) => {
+  // Collapse toggle — lazy-load on first expand
+  card.querySelector('.grammar-header').addEventListener('click', async (e) => {
     if (e.target.closest('.btn-delete-grammar')) return;
+    const wasCollapsed = card.classList.contains('collapsed');
     card.classList.toggle('collapsed');
+    if (wasCollapsed && !card._loaded) {
+      await loadSectionContent(card, section);
+    }
   });
 
   // Delete grammar section
@@ -170,35 +193,17 @@ async function buildGrammarCard(section) {
     btn.disabled = false;
   });
 
-  // Load exercises
+  // Add exercise (works before or after lazy load)
   const exerciseList = card.querySelector('.exercise-list');
-  const exercises = await api(`/api/grammar/${section.id}/exercises`);
-  exercises.forEach((ex, i) => {
-    const exCard = buildExerciseCard(ex, i + 1, section);
-  exCard.classList.add('ex-collapsed');
-  exerciseList.appendChild(exCard);
-  });
-  updateExerciseCount(card);
-
-  // Add exercise
   card.querySelector('.btn-add-exercise').addEventListener('click', async () => {
     const ex = await api(`/api/grammar/${section.id}/exercises`, 'POST');
-    const num = exerciseList.children.length + 1;
+    const num = exerciseList.querySelectorAll('.exercise-card').length + 1;
     exerciseList.appendChild(buildExerciseCard(ex, num, section));
     updateExerciseCount(card);
   });
 
-  // Load Q&A
+  // Ask Q&A (works before or after lazy load)
   const qaList = card.querySelector('.qa-list');
-  const qas = await api(`/api/grammar/${section.id}/qas`);
-  qas.forEach(qa => {
-    const qaCard = buildQaCard(qa, card);
-    qaCard.classList.add('qa-collapsed');
-    qaList.appendChild(qaCard);
-  });
-  updateQaCount(card);
-
-  // Ask Q&A
   const qaInput = card.querySelector('.qa-input');
   const askBtn = card.querySelector('.btn-ask');
   async function submitQa() {
@@ -222,6 +227,39 @@ async function buildGrammarCard(section) {
   qaInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitQa(); });
 
   return card;
+}
+
+async function loadSectionContent(card, section) {
+  card._loaded = true;
+  const exerciseList = card.querySelector('.exercise-list');
+  const qaList = card.querySelector('.qa-list');
+
+  exerciseList.innerHTML = '<div style="color:var(--text-muted);font-size:13px;display:flex;align-items:center;gap:8px"><span class="spinner"></span> Loading…</div>';
+
+  try {
+    const [exercises, qas] = await Promise.all([
+      api(`/api/grammar/${section.id}/exercises`),
+      api(`/api/grammar/${section.id}/qas`)
+    ]);
+
+    exerciseList.innerHTML = '';
+    exercises.forEach((ex, i) => {
+      const exCard = buildExerciseCard(ex, i + 1, section);
+      exCard.classList.add('ex-collapsed');
+      exerciseList.appendChild(exCard);
+    });
+    updateExerciseCount(card);
+
+    qas.forEach(qa => {
+      const qaCard = buildQaCard(qa, card);
+      qaCard.classList.add('qa-collapsed');
+      qaList.appendChild(qaCard);
+    });
+    updateQaCount(card);
+  } catch (err) {
+    exerciseList.innerHTML = `<div style="color:var(--danger);font-size:13px">${escHtml(err.message)}</div>`;
+    card._loaded = false;
+  }
 }
 
 function buildQaCard(qa, grammarCard) {
@@ -395,6 +433,7 @@ $('inputRenameNotebook').addEventListener('keydown', e => { if (e.key === 'Enter
 $('btnDeleteNotebook').addEventListener('click', async () => {
   if (!confirm('Delete this notebook and ALL its content?')) return;
   await api(`/api/notebooks/${currentNotebookId}`, 'DELETE');
+  delete notebookDomCache[currentNotebookId];
   notebooks = notebooks.filter(n => n.id !== currentNotebookId);
   currentNotebookId = null;
   renderSidebar();
@@ -417,7 +456,9 @@ $('btnConfirmGrammar').addEventListener('click', async () => {
   try {
     const section = await api(`/api/notebooks/${currentNotebookId}/grammar`, 'POST', { grammar_input: grammar });
     const container = $('grammarList');
-    const card = await buildGrammarCard(section);
+    const card = buildGrammarCard(section);
+    card.classList.remove('collapsed');
+    card._loaded = true;
     container.appendChild(card);
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
