@@ -75,6 +75,8 @@ function updateQaCount(grammarCard) {
 
 /* ── Sidebar: notebooks ── */
 async function loadNotebooks() {
+  const list = $('notebookList');
+  list.innerHTML = '<li class="loading-item"><span class="spinner"></span> Loading notebooks…</li>';
   notebooks = await api('/api/notebooks');
   renderSidebar();
 }
@@ -134,8 +136,9 @@ async function openNotebook(id) {
 
 /* ── Grammar sections ── */
 async function loadGrammarSections(notebookId) {
-  const sections = await api(`/api/notebooks/${notebookId}/grammar`);
   const container = $('grammarList');
+  container.innerHTML = '<div class="section-loading"><span class="spinner"></span> Loading grammar sections…</div>';
+  const sections = await api(`/api/notebooks/${notebookId}/grammar`);
   container.innerHTML = '';
   for (const section of sections) {
     container.appendChild(buildGrammarCard(section));
@@ -149,6 +152,8 @@ function buildGrammarCard(section) {
   card.classList.add('collapsed');
   card._loaded = false;
   card.querySelector('.grammar-input-text').textContent = section.grammar_input;
+  card.querySelector('.exercise-count').innerHTML = '<span class="spinner-tiny"></span>';
+  card.querySelector('.qa-count').innerHTML = '<span class="spinner-tiny"></span>';
 
   const summaryContent = card.querySelector('.ai-summary-content');
 
