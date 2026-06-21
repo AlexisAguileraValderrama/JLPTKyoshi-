@@ -88,6 +88,27 @@ Was the target grammar point used correctly? Explain.
 
 Be encouraging and educational. Keep explanations clear and simple."""
 
+QA_SYSTEM = """You are a JLPT Japanese grammar expert. The student is studying a specific grammar point and has a question about it.
+Answer clearly and concisely using markdown. Include Japanese examples with romaji and English translations when helpful.
+If the question is unrelated to Japanese grammar, politely redirect to the grammar topic."""
+
+
+def answer_qa(grammar_input: str, question: str, use_search: bool = False) -> str:
+    context = f"The student is studying the grammar point: {grammar_input}\nStudent's question: {question}"
+    kwargs = {
+        "model": "grok-3-mini",
+        "messages": [
+            {"role": "system", "content": QA_SYSTEM},
+            {"role": "user", "content": context},
+        ],
+        "max_tokens": 800,
+    }
+    if use_search:
+        kwargs["model"] = "grok-3"
+        kwargs["extra_body"] = {"search_parameters": {"mode": "auto"}}
+    response = client.chat.completions.create(**kwargs)
+    return response.choices[0].message.content
+
 
 def summarize_grammar(grammar_input: str, use_search: bool = False) -> str:
     system = SUMMARY_SYSTEM_SEARCH if use_search else SUMMARY_SYSTEM

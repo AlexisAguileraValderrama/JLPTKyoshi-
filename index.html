@@ -132,6 +132,7 @@
       <h2 class="grammar-input-text"></h2>
       <div class="grammar-header-actions">
         <span class="exercise-count"></span>
+        <span class="qa-count"></span>
         <span class="toggle-arrow">&#9660;</span>
         <button class="btn-icon danger btn-delete-grammar" title="Delete section">&#128465;</button>
       </div>
@@ -154,6 +155,35 @@
           <button class="btn-small btn-add-exercise">+ Add Exercise</button>
         </div>
         <div class="exercise-list"></div>
+      </div>
+
+      <div class="qa-section">
+        <div class="qa-header-bar">
+          <span class="qa-label">&#10067; Q&amp;A</span>
+        </div>
+        <div class="qa-list"></div>
+        <div class="qa-input-row">
+          <input type="text" class="qa-input" placeholder="Ask anything about this grammar point…" maxlength="500">
+          <button class="btn-primary btn-ask">Ask</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Q&A card template -->
+<template id="tplQaCard">
+  <div class="qa-card" data-id="">
+    <div class="qa-question-row">
+      <span class="toggle-arrow">&#9660;</span>
+      <span class="qa-q-label">Q:</span>
+      <span class="qa-question-text"></span>
+      <button class="btn-icon danger btn-delete-qa" title="Delete">&#128465;</button>
+    </div>
+    <div class="qa-answer-body">
+      <div class="qa-answer">
+        <span class="qa-a-label">A:</span>
+        <div class="qa-answer-content"></div>
       </div>
     </div>
   </div>

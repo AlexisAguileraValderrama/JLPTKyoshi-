@@ -121,6 +121,8 @@ def update_grammar_summary(user_id: str, section_id: str, summary: str) -> dict 
 def delete_grammar_section(user_id: str, section_id: str):
     for ex in get_exercises_raw(user_id, section_id):
         _get().delete_item(item=ex["id"], partition_key=user_id)
+    for qa in get_qas_raw(user_id, section_id):
+        _get().delete_item(item=qa["id"], partition_key=user_id)
     _get().delete_item(item=section_id, partition_key=user_id)
 
 
@@ -177,3 +179,55 @@ def update_exercise_feedback(user_id: str, exercise_id: str, feedback: str) -> d
 
 def delete_exercise(user_id: str, exercise_id: str):
     _get().delete_item(item=exercise_id, partition_key=user_id)
+
+
+# ── Q&A ──
+
+def get_qas(user_id: str, section_id: str) -> list:
+    rows = _get().query_items(
+        "SELECT * FROM c WHERE c.user_id=@u AND c.type='qa' AND c.grammar_section_id=@gs ORDER BY c.created_at ASC",
+        parameters=[{"name": "@u", "value": user_id}, {"name": "@gs", "value": section_id}],
+        partition_key=user_id,
+    )
+    return [_clean(r) for r in rows]
+
+
+def create_qa(user_id: str, section_id: str, question: str) -> dict:
+    doc = {
+        "id": str(uuid.uuid4()),
+        "type": "qa",
+        "user_id": user_id,
+        "grammar_section_id": section_id,
+        "question": question,
+        "ai_answer": None,
+        "created_at": _now(),
+    }
+    return _clean(_get().create_item(doc))
+
+
+def get_qa(user_id: str, qa_id: str) -> dict | None:
+    try:
+        return _get().read_item(item=qa_id, partition_key=user_id)
+    except CosmosResourceNotFoundError:
+        return None
+
+
+def update_qa_answer(user_id: str, qa_id: str, answer: str) -> dict | None:
+    item = get_qa(user_id, qa_id)
+    if not item:
+        return None
+    item["ai_answer"] = answer
+    return _clean(_get().replace_item(item=qa_id, body=item))
+
+
+def delete_qa(user_id: str, qa_id: str):
+    _get().delete_item(item=qa_id, partition_key=user_id)
+
+
+def get_qas_raw(user_id: str, section_id: str) -> list:
+    rows = _get().query_items(
+        "SELECT * FROM c WHERE c.user_id=@u AND c.type='qa' AND c.grammar_section_id=@gs",
+        parameters=[{"name": "@u", "value": user_id}, {"name": "@gs", "value": section_id}],
+        partition_key=user_id,
+    )
+    return list(rows)

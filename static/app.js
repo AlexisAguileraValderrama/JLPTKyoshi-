@@ -66,6 +66,12 @@ function updateExerciseCount(grammarCard) {
   if (el) el.textContent = count > 0 ? `${count} exercise${count === 1 ? '' : 's'}` : '';
 }
 
+function updateQaCount(grammarCard) {
+  const count = grammarCard.querySelectorAll('.qa-card').length;
+  const el = grammarCard.querySelector('.qa-count');
+  if (el) el.textContent = count > 0 ? `${count} Q&A` : '';
+}
+
 /* ── Sidebar: notebooks ── */
 async function loadNotebooks() {
   notebooks = await api('/api/notebooks');
@@ -122,6 +128,7 @@ async function buildGrammarCard(section) {
   const tpl = document.getElementById('tplGrammarSection');
   const card = tpl.content.cloneNode(true).querySelector('.grammar-section');
   card.dataset.id = section.id;
+  card.classList.add('collapsed');
   card.querySelector('.grammar-input-text').textContent = section.grammar_input;
 
   const summaryContent = card.querySelector('.ai-summary-content');
@@ -167,7 +174,9 @@ async function buildGrammarCard(section) {
   const exerciseList = card.querySelector('.exercise-list');
   const exercises = await api(`/api/grammar/${section.id}/exercises`);
   exercises.forEach((ex, i) => {
-    exerciseList.appendChild(buildExerciseCard(ex, i + 1, section));
+    const exCard = buildExerciseCard(ex, i + 1, section);
+  exCard.classList.add('ex-collapsed');
+  exerciseList.appendChild(exCard);
   });
   updateExerciseCount(card);
 
@@ -179,6 +188,63 @@ async function buildGrammarCard(section) {
     updateExerciseCount(card);
   });
 
+  // Load Q&A
+  const qaList = card.querySelector('.qa-list');
+  const qas = await api(`/api/grammar/${section.id}/qas`);
+  qas.forEach(qa => {
+    const qaCard = buildQaCard(qa, card);
+    qaCard.classList.add('qa-collapsed');
+    qaList.appendChild(qaCard);
+  });
+  updateQaCount(card);
+
+  // Ask Q&A
+  const qaInput = card.querySelector('.qa-input');
+  const askBtn = card.querySelector('.btn-ask');
+  async function submitQa() {
+    const question = qaInput.value.trim();
+    if (!question) return;
+    askBtn.disabled = true;
+    askBtn.textContent = 'Asking…';
+    qaInput.value = '';
+    try {
+      const qa = await api(`/api/grammar/${section.id}/qas`, 'POST', { question, use_search: useSearch() });
+      qaList.appendChild(buildQaCard(qa, card));
+      updateQaCount(card);
+      showToast('Answer ready!');
+    } catch (err) {
+      showToast(err.message, true);
+    }
+    askBtn.disabled = false;
+    askBtn.textContent = 'Ask';
+  }
+  askBtn.addEventListener('click', submitQa);
+  qaInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitQa(); });
+
+  return card;
+}
+
+function buildQaCard(qa, grammarCard) {
+  const tpl = document.getElementById('tplQaCard');
+  const card = tpl.content.cloneNode(true).querySelector('.qa-card');
+  card.dataset.id = qa.id;
+  card.querySelector('.qa-question-text').textContent = qa.question;
+  const answerContent = card.querySelector('.qa-answer-content');
+  if (qa.ai_answer) {
+    answerContent.innerHTML = renderMarkdown(qa.ai_answer);
+  } else {
+    answerContent.innerHTML = '<span class="spinner"></span> Generating…';
+  }
+  card.querySelector('.qa-question-row').addEventListener('click', (e) => {
+    if (e.target.closest('.btn-delete-qa')) return;
+    card.classList.toggle('qa-collapsed');
+  });
+  card.querySelector('.btn-delete-qa').addEventListener('click', async () => {
+    await api(`/api/qas/${qa.id}`, 'DELETE');
+    card.remove();
+    updateQaCount(grammarCard);
+    showToast('Q&A deleted');
+  });
   return card;
 }
 

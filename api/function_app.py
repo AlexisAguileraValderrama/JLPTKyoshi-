@@ -211,3 +211,50 @@ def evaluate(req: func.HttpRequest) -> func.HttpResponse:
 
     updated = db.update_exercise_feedback(uid, exercise_id, feedback)
     return _json(updated)
+
+
+# ── Q&A ────────────────────────────────────────────────────────────────────────
+
+@app.route(route="grammar/{section_id}/qas", methods=["GET", "POST"])
+def qas(req: func.HttpRequest) -> func.HttpResponse:
+    uid = _user_id(req)
+    if not uid:
+        return _err("Unauthorized", 401)
+    section_id = req.route_params.get("section_id")
+
+    if req.method == "GET":
+        return _json(db.get_qas(uid, section_id))
+
+    try:
+        body = req.get_json()
+    except ValueError:
+        body = {}
+    question = (body.get("question") or "").strip()
+    if not question:
+        return _err("Question is required")
+    use_search = bool(body.get("use_search", False))
+
+    section = db.get_grammar_section(uid, section_id)
+    if not section:
+        return _err("Grammar section not found", 404)
+
+    qa = db.create_qa(uid, section_id, question)
+
+    try:
+        answer = ai_client.answer_qa(section["grammar_input"], question, use_search=use_search)
+    except Exception as e:
+        logging.exception("answer_qa failed")
+        return _err(str(e), 500)
+
+    updated = db.update_qa_answer(uid, qa["id"], answer)
+    return _json(updated, 201)
+
+
+@app.route(route="qas/{qa_id}", methods=["DELETE"])
+def qa_by_id(req: func.HttpRequest) -> func.HttpResponse:
+    uid = _user_id(req)
+    if not uid:
+        return _err("Unauthorized", 401)
+    qa_id = req.route_params.get("qa_id")
+    db.delete_qa(uid, qa_id)
+    return _json({"ok": True})
