@@ -143,6 +143,7 @@ async function loadGrammarSections(notebookId) {
   for (const section of sections) {
     container.appendChild(await buildGrammarCard(section));
   }
+  updateMoveButtons();
 }
 
 async function buildGrammarCard(section) {
@@ -161,15 +162,20 @@ async function buildGrammarCard(section) {
 
   // Collapse toggle
   card.querySelector('.grammar-header').addEventListener('click', (e) => {
-    if (e.target.closest('.btn-delete-grammar')) return;
+    if (e.target.closest('.btn-delete-grammar') || e.target.closest('.btn-move-up') || e.target.closest('.btn-move-down')) return;
     card.classList.toggle('collapsed');
   });
+
+  // Move up/down
+  card.querySelector('.btn-move-up').addEventListener('click', () => moveGrammarSection(card, 'up'));
+  card.querySelector('.btn-move-down').addEventListener('click', () => moveGrammarSection(card, 'down'));
 
   // Delete grammar section
   card.querySelector('.btn-delete-grammar').addEventListener('click', async () => {
     if (!confirm('Delete this grammar section and all its exercises?')) return;
     await api(`/api/grammar/${section.id}`, 'DELETE');
     card.remove();
+    updateMoveButtons();
     showToast('Section deleted');
   });
 
@@ -245,6 +251,37 @@ async function buildGrammarCard(section) {
   qaInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitQa(); });
 
   return card;
+}
+
+/* ── Reorder grammar sections ── */
+function moveGrammarSection(card, direction) {
+  const container = $('grammarList');
+  if (direction === 'up' && card.previousElementSibling) {
+    container.insertBefore(card, card.previousElementSibling);
+  } else if (direction === 'down' && card.nextElementSibling) {
+    container.insertBefore(card.nextElementSibling, card);
+  }
+  updateMoveButtons();
+  saveGrammarOrder();
+}
+
+function updateMoveButtons() {
+  const container = $('grammarList');
+  const cards = container.querySelectorAll('.grammar-section');
+  cards.forEach((card, i) => {
+    card.querySelector('.btn-move-up').disabled = (i === 0);
+    card.querySelector('.btn-move-down').disabled = (i === cards.length - 1);
+  });
+}
+
+async function saveGrammarOrder() {
+  const container = $('grammarList');
+  const ids = [...container.querySelectorAll('.grammar-section')].map(c => c.dataset.id);
+  try {
+    await api(`/api/notebooks/${currentNotebookId}/grammar/reorder`, 'POST', { ids });
+  } catch (err) {
+    showToast('Failed to save order: ' + err.message, true);
+  }
 }
 
 function buildQaCard(qa, grammarCard) {
@@ -444,6 +481,7 @@ $('btnConfirmGrammar').addEventListener('click', async () => {
     const card = await buildGrammarCard(section);
     card.classList.remove('collapsed');
     container.appendChild(card);
+    updateMoveButtons();
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     // Kick off summary immediately

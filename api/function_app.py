@@ -102,6 +102,23 @@ def grammar_sections(req: func.HttpRequest) -> func.HttpResponse:
     return _json(section, 201)
 
 
+@app.route(route="notebooks/{notebook_id}/grammar/reorder", methods=["POST"])
+def reorder_grammar(req: func.HttpRequest) -> func.HttpResponse:
+    uid = _user_id(req)
+    if not uid:
+        return _err("Unauthorized", 401)
+    notebook_id = req.route_params.get("notebook_id")
+    try:
+        body = req.get_json()
+    except ValueError:
+        body = {}
+    ids = body.get("ids", [])
+    if not ids:
+        return _err("ids is required")
+    db.reorder_grammar_sections(uid, notebook_id, ids)
+    return _json({"ok": True})
+
+
 @app.route(route="grammar/{section_id}", methods=["DELETE"])
 def grammar_section_by_id(req: func.HttpRequest) -> func.HttpResponse:
     uid = _user_id(req)

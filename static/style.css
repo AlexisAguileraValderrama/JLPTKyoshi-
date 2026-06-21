@@ -332,7 +332,16 @@ body {
   font-family: var(--font-jp), var(--font);
 }
 
-.grammar-header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.grammar-header-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+.btn-move-up, .btn-move-down {
+  font-size: 10px;
+  width: 26px;
+  height: 26px;
+  color: var(--text-dim);
+}
+.btn-move-up:hover, .btn-move-down:hover { border-color: var(--accent); color: var(--accent-hover); }
+.btn-move-up:disabled, .btn-move-down:disabled { opacity: .25; cursor: not-allowed; pointer-events: none; }
 
 .exercise-count {
   font-size: 11px;

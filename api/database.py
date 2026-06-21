@@ -79,11 +79,13 @@ def delete_notebook(user_id: str, notebook_id: str):
 
 def get_grammar_sections_raw(user_id: str, notebook_id: str) -> list:
     rows = _get().query_items(
-        "SELECT * FROM c WHERE c.user_id=@u AND c.type='grammar_section' AND c.notebook_id=@nb ORDER BY c.created_at ASC",
+        "SELECT * FROM c WHERE c.user_id=@u AND c.type='grammar_section' AND c.notebook_id=@nb",
         parameters=[{"name": "@u", "value": user_id}, {"name": "@nb", "value": notebook_id}],
         partition_key=user_id,
     )
-    return list(rows)
+    result = list(rows)
+    result.sort(key=lambda r: (r.get("position") if r.get("position") is not None else 999999, r.get("created_at", "")))
+    return result
 
 
 def get_grammar_sections(user_id: str, notebook_id: str) -> list:
@@ -91,6 +93,8 @@ def get_grammar_sections(user_id: str, notebook_id: str) -> list:
 
 
 def create_grammar_section(user_id: str, notebook_id: str, grammar_input: str) -> dict:
+    existing = get_grammar_sections_raw(user_id, notebook_id)
+    max_pos = max((r.get("position", -1) for r in existing), default=-1)
     doc = {
         "id": str(uuid.uuid4()),
         "type": "grammar_section",
@@ -98,9 +102,18 @@ def create_grammar_section(user_id: str, notebook_id: str, grammar_input: str) -
         "notebook_id": notebook_id,
         "grammar_input": grammar_input,
         "ai_summary": None,
+        "position": max_pos + 1,
         "created_at": _now(),
     }
     return _clean(_get().create_item(doc))
+
+
+def reorder_grammar_sections(user_id: str, notebook_id: str, ids: list):
+    for i, section_id in enumerate(ids):
+        item = get_grammar_section(user_id, section_id)
+        if item and item.get("notebook_id") == notebook_id:
+            item["position"] = i
+            _get().replace_item(item=section_id, body=item)
 
 
 def get_grammar_section(user_id: str, section_id: str) -> dict | None:
