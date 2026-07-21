@@ -187,6 +187,8 @@ function buildRememberPanel(card, section, tests) {
       scoreLabel.textContent = test.score >= 8 ? 'Great job!' : test.score >= 5 ? 'Keep studying!' : 'Review this one!';
       feedbackContent.innerHTML = renderMarkdown(test.ai_feedback || '');
       result.classList.remove('hidden');
+      // Auto-expand the grammar card so the result is visible
+      card.classList.remove('collapsed');
       // Update header chip + last info
       updateRememberChip(card, test.score, test.created_at);
       lastInfo.textContent = `${test.score}/10 · just now`;
@@ -321,6 +323,12 @@ async function buildGrammarCard(section) {
   card.querySelector('.grammar-header').addEventListener('click', (e) => {
     if (e.target.closest('.btn-delete-grammar') || e.target.closest('.btn-move-up') || e.target.closest('.btn-move-down')) return;
     card.classList.toggle('collapsed');
+    // When collapsing, close the remember test form and result
+    if (card.classList.contains('collapsed')) {
+      card.querySelector('.remember-form').classList.add('hidden');
+      card.querySelector('.remember-result').classList.add('hidden');
+      card.querySelector('.btn-toggle-test').textContent = 'Test yourself';
+    }
   });
 
   // Move up/down
