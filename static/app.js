@@ -323,11 +323,20 @@ async function buildGrammarCard(section) {
   card.querySelector('.grammar-header').addEventListener('click', (e) => {
     if (e.target.closest('.btn-delete-grammar') || e.target.closest('.btn-move-up') || e.target.closest('.btn-move-down')) return;
     card.classList.toggle('collapsed');
-    // When collapsing, close the remember test form and result
     if (card.classList.contains('collapsed')) {
+      // Close test form
       card.querySelector('.remember-form').classList.add('hidden');
-      card.querySelector('.remember-result').classList.add('hidden');
       card.querySelector('.btn-toggle-test').textContent = 'Test yourself';
+      // Close history items and reset its button text
+      const histItems = card.querySelector('.remember-history-items');
+      if (histItems && !histItems.classList.contains('hidden')) {
+        histItems.classList.add('hidden');
+        const count = card.querySelector('.history-count');
+        const histBtn = card.querySelector('.btn-show-history');
+        if (histBtn && count) {
+          histBtn.innerHTML = `&#128336; History (<span class="history-count">${count.textContent}</span>)`;
+        }
+      }
     }
   });
 
