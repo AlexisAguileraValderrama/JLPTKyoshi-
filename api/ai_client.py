@@ -95,9 +95,13 @@ If the question is unrelated to Japanese grammar, politely redirect to the gramm
 
 REMEMBER_TEST_SYSTEM = """You are a JLPT Japanese grammar teacher assessing a student's ability to recall a grammar point.
 The student was shown a Japanese grammar point and asked to explain IN ENGLISH what it is used for.
-You must respond ONLY with valid JSON — no markdown, no code fences, no extra text.
-Use exactly this format:
-{"score": <integer 0-10>, "feedback": "<markdown string>"}
+
+Respond using EXACTLY this format — nothing else before or after:
+
+<score>INTEGER_0_TO_10</score>
+<feedback>
+MARKDOWN_FEEDBACK_HERE
+</feedback>
 
 Scoring guide:
 - 9-10: Excellent — core meaning, usage, and nuance all accurate
@@ -117,7 +121,7 @@ Clarify misconceptions or missing points. Be encouraging and educational."""
 
 
 def assess_remember_test(grammar_input: str, user_answer: str) -> tuple[int, str]:
-    import json as _json
+    import re as _re
     context = f"Grammar point: {grammar_input}\nStudent's answer: {user_answer}"
     response = client.chat.completions.create(
         model="grok-3-mini",
@@ -128,17 +132,17 @@ def assess_remember_test(grammar_input: str, user_answer: str) -> tuple[int, str
         max_tokens=500,
     )
     content = response.choices[0].message.content.strip()
-    # Strip possible code fences
-    if content.startswith("```"):
-        parts = content.split("```")
-        content = parts[1] if len(parts) > 1 else content
-        if content.startswith("json"):
-            content = content[4:]
-    content = content.strip()
+    score_match = _re.search(r'<score>\s*(\d+)\s*</score>', content)
+    feedback_match = _re.search(r'<feedback>\s*(.*?)\s*</feedback>', content, _re.DOTALL)
+    if score_match and feedback_match:
+        score = max(0, min(10, int(score_match.group(1))))
+        feedback = feedback_match.group(1).strip()
+        return score, feedback
+    # Fallback: first line as score, rest as feedback
+    lines = content.splitlines()
     try:
-        data = _json.loads(content)
-        score = max(0, min(10, int(data.get("score", 0))))
-        feedback = str(data.get("feedback", ""))
+        score = max(0, min(10, int(lines[0].strip())))
+        feedback = "\n".join(lines[1:]).strip()
         return score, feedback
     except Exception:
         return 5, content
