@@ -73,6 +73,163 @@ function updateQaCount(grammarCard) {
   if (el) el.textContent = count > 0 ? `${count} Q&A` : '';
 }
 
+function scoreColor(score) {
+  if (score >= 9) return '#50c878';
+  if (score >= 7) return '#a8d850';
+  if (score >= 5) return '#f0c060';
+  if (score >= 3) return '#f09040';
+  return '#e05555';
+}
+
+function relativeTime(isoStr) {
+  if (!isoStr) return '';
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function updateRememberChip(card, score, testedAt) {
+  const chip = card.querySelector('.remember-chip');
+  if (!chip) return;
+  if (score == null) { chip.textContent = ''; return; }
+  chip.textContent = `\u{1F9E0} ${score}/10`;
+  chip.style.color = scoreColor(score);
+  chip.title = `Last self-test: ${score}/10 · ${relativeTime(testedAt)}`;
+}
+
+function buildRememberHistoryItem(test) {
+  const div = document.createElement('div');
+  div.className = 'remember-history-item';
+  div.dataset.id = test.id;
+  const color = scoreColor(test.score);
+  div.innerHTML = `
+    <div class="rh-item-header">
+      <span class="rh-score" style="color:${color}">${test.score}/10</span>
+      <span class="rh-date">${relativeTime(test.created_at)}</span>
+      <button class="btn-icon danger btn-delete-test" title="Delete">&#128465;</button>
+    </div>
+    <div class="rh-answer">"${escHtml(test.user_answer)}"</div>
+    <div class="rh-feedback">${renderMarkdown(test.ai_feedback || '')}</div>
+  `;
+  return div;
+}
+
+function buildRememberPanel(card, section, tests) {
+  const panel = card.querySelector('.remember-panel');
+  const lastInfo = panel.querySelector('.remember-last-info');
+  const toggleBtn = panel.querySelector('.btn-toggle-test');
+  const form = panel.querySelector('.remember-form');
+  const input = panel.querySelector('.remember-input');
+  const submitBtn = panel.querySelector('.btn-submit-test');
+  const cancelBtn = panel.querySelector('.btn-cancel-test');
+  const result = panel.querySelector('.remember-result');
+  const scoreBadge = panel.querySelector('.remember-score-badge');
+  const scoreLabel = panel.querySelector('.remember-score-label');
+  const feedbackContent = panel.querySelector('.remember-feedback-content');
+  const historyDiv = panel.querySelector('.remember-history');
+  const historyCountEl = panel.querySelector('.history-count');
+  const showHistoryBtn = panel.querySelector('.btn-show-history');
+  const historyItems = panel.querySelector('.remember-history-items');
+
+  // Init from existing tests
+  const latest = tests[0] || null;
+  if (latest && latest.score != null) {
+    lastInfo.textContent = `${latest.score}/10 · ${relativeTime(latest.created_at)}`;
+    lastInfo.style.color = scoreColor(latest.score);
+    updateRememberChip(card, latest.score, latest.created_at);
+  }
+  if (tests.length > 0) {
+    historyCountEl.textContent = tests.length;
+    historyDiv.classList.remove('hidden');
+    tests.forEach(t => historyItems.appendChild(buildRememberHistoryItem(t)));
+  }
+
+  // Prevent clicks inside the panel from toggling the grammar card collapse
+  panel.addEventListener('click', e => e.stopPropagation());
+
+  // Toggle test form
+  toggleBtn.addEventListener('click', () => {
+    form.classList.toggle('hidden');
+    result.classList.add('hidden');
+    if (!form.classList.contains('hidden')) {
+      input.value = '';
+      input.focus();
+      toggleBtn.textContent = 'Close';
+    } else {
+      toggleBtn.textContent = 'Test yourself';
+    }
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    form.classList.add('hidden');
+    result.classList.add('hidden');
+    toggleBtn.textContent = 'Test yourself';
+  });
+
+  // Submit test
+  async function submitTest() {
+    const answer = input.value.trim();
+    if (!answer) return;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Assessing…';
+    result.classList.add('hidden');
+    try {
+      const test = await api(`/api/grammar/${section.id}/tests`, 'POST', { user_answer: answer });
+      // Show result
+      const color = scoreColor(test.score);
+      scoreBadge.textContent = `${test.score}/10`;
+      scoreBadge.style.color = color;
+      scoreLabel.textContent = test.score >= 8 ? 'Great job!' : test.score >= 5 ? 'Keep studying!' : 'Review this one!';
+      feedbackContent.innerHTML = renderMarkdown(test.ai_feedback || '');
+      result.classList.remove('hidden');
+      // Update header chip + last info
+      updateRememberChip(card, test.score, test.created_at);
+      lastInfo.textContent = `${test.score}/10 · just now`;
+      lastInfo.style.color = color;
+      // Add to history
+      historyItems.prepend(buildRememberHistoryItem(test));
+      const newCount = historyItems.querySelectorAll('.remember-history-item').length;
+      historyCountEl.textContent = newCount;
+      historyDiv.classList.remove('hidden');
+      showToast(`Score: ${test.score}/10`);
+      input.value = '';
+    } catch (err) {
+      showToast(err.message, true);
+    }
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Assess';
+  }
+
+  submitBtn.addEventListener('click', submitTest);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter' && e.ctrlKey) submitTest(); });
+
+  // Toggle history
+  showHistoryBtn.addEventListener('click', () => {
+    const hidden = historyItems.classList.toggle('hidden');
+    showHistoryBtn.innerHTML = `&#128336; History (<span class="history-count">${historyCountEl.textContent}</span>) ${hidden ? '' : '&#9650;'}`;
+  });
+
+  // Delete a test from history
+  historyItems.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.btn-delete-test');
+    if (!btn) return;
+    const item = btn.closest('.remember-history-item');
+    const testId = item.dataset.id;
+    await api(`/api/tests/${testId}`, 'DELETE');
+    item.remove();
+    const remaining = historyItems.querySelectorAll('.remember-history-item').length;
+    historyCountEl.textContent = remaining;
+    showHistoryBtn.innerHTML = `&#128336; History (<span class="history-count">${remaining}</span>)`;
+    if (remaining === 0) historyDiv.classList.add('hidden');
+    showToast('Test deleted');
+  });
+}
+
 /* ── Sidebar: notebooks ── */
 async function loadNotebooks() {
   const list = $('notebookList');
@@ -197,11 +354,12 @@ async function buildGrammarCard(section) {
     btn.disabled = false;
   });
 
-  // Load exercises
+  // Load exercises, Q&As, and remember tests in parallel
   const exerciseList = card.querySelector('.exercise-list');
-  const [exercises, qas] = await Promise.all([
+  const [exercises, qas, tests] = await Promise.all([
     api(`/api/grammar/${section.id}/exercises`),
-    api(`/api/grammar/${section.id}/qas`)
+    api(`/api/grammar/${section.id}/qas`),
+    api(`/api/grammar/${section.id}/tests`),
   ]);
   exercises.forEach((ex, i) => {
     const exCard = buildExerciseCard(ex, i + 1, section);
@@ -226,6 +384,9 @@ async function buildGrammarCard(section) {
     qaList.appendChild(qaCard);
   });
   updateQaCount(card);
+
+  // Remember test panel
+  buildRememberPanel(card, section, tests);
 
   // Ask Q&A
   const qaInput = card.querySelector('.qa-input');

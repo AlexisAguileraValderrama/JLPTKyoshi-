@@ -355,6 +355,214 @@ body {
 }
 .exercise-count:empty { display: none; }
 
+/* ── Remember chip in grammar header ── */
+.remember-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(160,120,240,0.12);
+  border: 1px solid rgba(160,120,240,0.25);
+  white-space: nowrap;
+}
+.remember-chip:empty { display: none; }
+
+/* ── Remember Test panel ── */
+.remember-panel {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.remember-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: rgba(124,106,240,0.06);
+  border-bottom: 1px solid transparent;
+  flex-wrap: wrap;
+}
+.remember-panel:has(.remember-form:not(.hidden)) .remember-bar {
+  border-bottom-color: var(--border);
+}
+
+.remember-bar-icon { font-size: 14px; flex-shrink: 0; }
+
+.remember-bar-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--accent-hover);
+  flex-shrink: 0;
+}
+
+.remember-last-info {
+  font-size: 12px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Test form */
+.remember-form {
+  padding: 14px 18px 16px;
+}
+
+.remember-input {
+  width: 100%;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 7px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: var(--font);
+  resize: vertical;
+  outline: none;
+  line-height: 1.6;
+  transition: border-color .15s;
+  margin-bottom: 10px;
+}
+.remember-input:focus { border-color: var(--accent); }
+.remember-input::placeholder { color: var(--text-dim); }
+
+.remember-form-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Result block */
+.remember-result {
+  margin-top: 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.remember-score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.remember-score-badge {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.remember-score-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.remember-feedback-content {
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--text);
+}
+.remember-feedback-content h2 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-hover);
+  margin: 10px 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border);
+}
+.remember-feedback-content h2:first-child { margin-top: 0; }
+.remember-feedback-content p { margin-bottom: 6px; }
+.remember-feedback-content ul { margin: 4px 0 8px 18px; }
+.remember-feedback-content li { margin-bottom: 3px; }
+.remember-feedback-content strong { color: var(--text); }
+
+/* History */
+.remember-history {
+  padding: 8px 18px 10px;
+  border-top: 1px solid var(--border);
+  background: rgba(0,0,0,0.08);
+}
+
+.remember-history-items {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.remember-history-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.rh-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.rh-score {
+  font-size: 13px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.rh-date {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex: 1;
+}
+
+.rh-answer {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: 8px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.rh-feedback {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+}
+.rh-feedback h2 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-hover);
+  margin: 8px 0 3px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.rh-feedback h2:first-child { margin-top: 0; }
+.rh-feedback p { margin-bottom: 5px; }
+.rh-feedback ul { margin: 3px 0 6px 16px; }
+.rh-feedback li { margin-bottom: 2px; }
+.rh-feedback strong { color: var(--text); }
+
+/* Collapsed state: keep remember-panel visible, remove bottom divider */
+.grammar-section.collapsed .remember-panel {
+  display: block;
+  border-bottom: none;
+}
+
+/* Mobile adjustments */
+@media (max-width: 700px) {
+  .remember-bar { padding: 8px 14px; }
+  .remember-form { padding: 12px 14px 14px; }
+  .remember-history { padding: 8px 14px 10px; }
+}
+
 /* ── AI summary box ── */
 .ai-summary-box {
   padding: 18px 20px;

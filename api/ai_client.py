@@ -93,6 +93,57 @@ Answer clearly and concisely using markdown. Include Japanese examples with roma
 If the question is unrelated to Japanese grammar, politely redirect to the grammar topic."""
 
 
+REMEMBER_TEST_SYSTEM = """You are a JLPT Japanese grammar teacher assessing a student's ability to recall a grammar point.
+The student was shown a Japanese grammar point and asked to explain IN ENGLISH what it is used for.
+You must respond ONLY with valid JSON — no markdown, no code fences, no extra text.
+Use exactly this format:
+{"score": <integer 0-10>, "feedback": "<markdown string>"}
+
+Scoring guide:
+- 9-10: Excellent — core meaning, usage, and nuance all accurate
+- 7-8: Good — main concept correct, minor gaps
+- 5-6: Partial — some correct elements but missing key aspects
+- 3-4: Basic — recognizes the grammar but vague or partially wrong
+- 1-2: Poor — mostly incorrect
+- 0: Completely wrong or blank
+
+In the feedback markdown (keep under 120 words):
+## Result
+Brief overall assessment.
+## What you got right
+Point out correct elements (skip if score is 0-2).
+## What to review
+Clarify misconceptions or missing points. Be encouraging and educational."""
+
+
+def assess_remember_test(grammar_input: str, user_answer: str) -> tuple[int, str]:
+    import json as _json
+    context = f"Grammar point: {grammar_input}\nStudent's answer: {user_answer}"
+    response = client.chat.completions.create(
+        model="grok-3-mini",
+        messages=[
+            {"role": "system", "content": REMEMBER_TEST_SYSTEM},
+            {"role": "user", "content": context},
+        ],
+        max_tokens=500,
+    )
+    content = response.choices[0].message.content.strip()
+    # Strip possible code fences
+    if content.startswith("```"):
+        parts = content.split("```")
+        content = parts[1] if len(parts) > 1 else content
+        if content.startswith("json"):
+            content = content[4:]
+    content = content.strip()
+    try:
+        data = _json.loads(content)
+        score = max(0, min(10, int(data.get("score", 0))))
+        feedback = str(data.get("feedback", ""))
+        return score, feedback
+    except Exception:
+        return 5, content
+
+
 def answer_qa(grammar_input: str, question: str, use_search: bool = False) -> str:
     context = f"The student is studying the grammar point: {grammar_input}\nStudent's question: {question}"
     kwargs = {

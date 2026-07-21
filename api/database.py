@@ -136,6 +136,8 @@ def delete_grammar_section(user_id: str, section_id: str):
         _get().delete_item(item=ex["id"], partition_key=user_id)
     for qa in get_qas_raw(user_id, section_id):
         _get().delete_item(item=qa["id"], partition_key=user_id)
+    for t in get_remember_tests_raw(user_id, section_id):
+        _get().delete_item(item=t["id"], partition_key=user_id)
     _get().delete_item(item=section_id, partition_key=user_id)
 
 
@@ -244,3 +246,55 @@ def get_qas_raw(user_id: str, section_id: str) -> list:
         partition_key=user_id,
     )
     return list(rows)
+
+
+# ── Remember Tests ──
+
+def get_remember_tests_raw(user_id: str, section_id: str) -> list:
+    rows = _get().query_items(
+        "SELECT * FROM c WHERE c.user_id=@u AND c.type='remember_test' AND c.grammar_section_id=@gs ORDER BY c.created_at DESC",
+        parameters=[{"name": "@u", "value": user_id}, {"name": "@gs", "value": section_id}],
+        partition_key=user_id,
+    )
+    return list(rows)
+
+
+def get_remember_tests(user_id: str, section_id: str) -> list:
+    return [_clean(r) for r in get_remember_tests_raw(user_id, section_id)]
+
+
+def create_remember_test(user_id: str, section_id: str, user_answer: str) -> dict:
+    doc = {
+        "id": str(uuid.uuid4()),
+        "type": "remember_test",
+        "user_id": user_id,
+        "grammar_section_id": section_id,
+        "user_answer": user_answer,
+        "score": None,
+        "ai_feedback": None,
+        "created_at": _now(),
+    }
+    return _clean(_get().create_item(doc))
+
+
+def update_remember_test_result(user_id: str, test_id: str, score: int, ai_feedback: str) -> dict | None:
+    try:
+        item = _get().read_item(item=test_id, partition_key=user_id)
+    except CosmosResourceNotFoundError:
+        return None
+    item["score"] = score
+    item["ai_feedback"] = ai_feedback
+    return _clean(_get().replace_item(item=test_id, body=item))
+
+
+def update_grammar_last_test(user_id: str, section_id: str, score: int) -> None:
+    item = get_grammar_section(user_id, section_id)
+    if not item:
+        return
+    item["last_test_at"] = _now()
+    item["last_test_score"] = score
+    _get().replace_item(item=section_id, body=item)
+
+
+def delete_remember_test(user_id: str, test_id: str):
+    _get().delete_item(item=test_id, partition_key=user_id)

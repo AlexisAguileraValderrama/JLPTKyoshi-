@@ -133,10 +133,39 @@
       <div class="grammar-header-actions">
         <span class="exercise-count"></span>
         <span class="qa-count"></span>
+        <span class="remember-chip" title="Last self-test score"></span>
         <button class="btn-icon btn-move-up" title="Move up">&#9650;</button>
         <button class="btn-icon btn-move-down" title="Move down">&#9660;</button>
         <span class="toggle-arrow">&#9660;</span>
         <button class="btn-icon danger btn-delete-grammar" title="Delete section">&#128465;</button>
+      </div>
+    </div>
+
+    <!-- Remember Test panel — visible in both collapsed and expanded states -->
+    <div class="remember-panel">
+      <div class="remember-bar">
+        <span class="remember-bar-icon">&#129504;</span>
+        <span class="remember-bar-title">Self-test</span>
+        <span class="remember-last-info"></span>
+        <button class="btn-small btn-toggle-test">Test yourself</button>
+      </div>
+      <div class="remember-form hidden">
+        <textarea class="remember-input" placeholder="Describe in English what this grammar point is used for…" rows="3"></textarea>
+        <div class="remember-form-actions">
+          <button class="btn-primary btn-submit-test">Assess</button>
+          <button class="btn-small btn-cancel-test">Cancel</button>
+        </div>
+        <div class="remember-result hidden">
+          <div class="remember-score-row">
+            <span class="remember-score-badge"></span>
+            <span class="remember-score-label"></span>
+          </div>
+          <div class="remember-feedback-content"></div>
+        </div>
+      </div>
+      <div class="remember-history hidden">
+        <button class="btn-small btn-show-history">&#128336; History (<span class="history-count">0</span>)</button>
+        <div class="remember-history-items hidden"></div>
       </div>
     </div>
 

@@ -275,3 +275,50 @@ def qa_by_id(req: func.HttpRequest) -> func.HttpResponse:
     qa_id = req.route_params.get("qa_id")
     db.delete_qa(uid, qa_id)
     return _json({"ok": True})
+
+
+# ── Remember Tests ──────────────────────────────────────────────────────────────
+
+@app.route(route="grammar/{section_id}/tests", methods=["GET", "POST"])
+def remember_tests(req: func.HttpRequest) -> func.HttpResponse:
+    uid = _user_id(req)
+    if not uid:
+        return _err("Unauthorized", 401)
+    section_id = req.route_params.get("section_id")
+
+    if req.method == "GET":
+        return _json(db.get_remember_tests(uid, section_id))
+
+    try:
+        body = req.get_json()
+    except ValueError:
+        body = {}
+    user_answer = (body.get("user_answer") or "").strip()
+    if not user_answer:
+        return _err("Answer is required")
+
+    section = db.get_grammar_section(uid, section_id)
+    if not section:
+        return _err("Grammar section not found", 404)
+
+    test = db.create_remember_test(uid, section_id, user_answer)
+
+    try:
+        score, feedback = ai_client.assess_remember_test(section["grammar_input"], user_answer)
+    except Exception as e:
+        logging.exception("assess_remember_test failed")
+        return _err(str(e), 500)
+
+    updated = db.update_remember_test_result(uid, test["id"], score, feedback)
+    db.update_grammar_last_test(uid, section_id, score)
+    return _json(updated, 201)
+
+
+@app.route(route="tests/{test_id}", methods=["DELETE"])
+def test_by_id(req: func.HttpRequest) -> func.HttpResponse:
+    uid = _user_id(req)
+    if not uid:
+        return _err("Unauthorized", 401)
+    test_id = req.route_params.get("test_id")
+    db.delete_remember_test(uid, test_id)
+    return _json({"ok": True})
